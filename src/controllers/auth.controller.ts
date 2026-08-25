@@ -66,10 +66,14 @@ export const handleGoogleLogin = async (
     // 1. Verify Google ID token signature, expiration, and audience
     const ticket = await googleClient.verifyIdToken({
       idToken: idToken,
-      audience: process.env.GOOGLE_WEB_CLIENT_ID,
+      audience: [
+        process.env.GOOGLE_WEB_CLIENT_ID ?? "",
+        process.env.GOOGLE_DESKTOP_CLIENT_ID ?? "",
+      ],
     });
     payload = ticket.getPayload();
   } catch (error) {
+    console.log(error);
     throw new AppError("Invalid or expired Google ID token", 401);
   }
 
