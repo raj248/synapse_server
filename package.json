@@ -1,0 +1,48 @@
+{
+  "name": "nodejs-ts-template",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "description": "A NodeJS Typescript Express Template to quickly start with a new project",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsc --build",
+    "start": "node ./dist/index.js",
+    "clean": "rimraf ./dist",
+    "generate": "prisma generate",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/raj248/nodejs-ts-template"
+  },
+  "keywords": [
+    "template"
+  ],
+  "author": "raj248",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "dotenv-flow": "^4.1.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.5.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.9.1",
+    "nodemon": "^3.1.10",
+    "prisma": "^7.8.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}
