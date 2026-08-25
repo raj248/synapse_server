@@ -7,7 +7,15 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  password  String
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String?  // Nullable to support passwordless Google authentication
+  firstName String?
+  lastName  String?
+  gender    String?
+  image     String?  // Stores avatar URL from Google payload or profile upload
+  googleId  String?  @unique // Optional: index Google's unique subject ('sub') ID
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
