@@ -3,7 +3,7 @@ import { TokenPayload, verifyAccessToken } from "../utils/crypto.utils";
 import { AppError } from "../utils/app-error.utils";
 
 // 1. Explicitly extend the Express Request type right here
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   user?: TokenPayload;
 }
 

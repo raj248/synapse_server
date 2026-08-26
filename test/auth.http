@@ -1,0 +1,102 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+@testEmail = swallow007281@gmail.com
+@testUsername = testuser
+@initialPassword = Password123!
+@newPassword = NewPassword123!
+
+# Variables automatically populated by requests below:
+@verificationToken = {{fetchDevTokens.response.body.emailVerificationToken}}
+@resetCode = {{fetchDevTokens.response.body.resetPasswordCode}}
+@accessToken = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+---
+
+### 1. Register Account
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "username": "{{testUsername}}",
+  "password": "{{initialPassword}}",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+### 2. Fetch Verification Token (Dev Helper)
+# @name fetchDevTokens
+GET {{baseUrl}}/auth/dev/tokens?email={{testEmail}}
+
+### 3. Verify Email Token (Auto-populated from Step 2)
+POST {{baseUrl}}/auth/verify-email
+Content-Type: application/json
+
+{
+  "token": "{{verificationToken}}"
+}
+
+### 4. Login with Credentials
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{testUsername}}",
+  "password": "{{initialPassword}}"
+}
+
+### 5. Get Profile (Auto-populated Bearer Token)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### 6. Refresh Access Token (Auto-populated Refresh Token)
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 7. Request Forgot Password Code
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}"
+}
+
+### 8. Fetch Reset Code (Dev Helper)
+# @name fetchDevResetTokens
+GET {{baseUrl}}/auth/dev/tokens?email={{testEmail}}
+
+### 9. Reset Password using Code (Auto-populated Code)
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "code": "{{fetchDevResetTokens.response.body.resetPasswordCode}}",
+  "newPassword": "{{newPassword}}"
+}
+
+### 10. Login with New Password
+# @name loginAfterReset
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{testUsername}}",
+  "password": "{{newPassword}}"
+}
+
+### 11. Change Password Back to Original
+POST {{baseUrl}}/auth/change-password
+Authorization: Bearer {{loginAfterReset.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "oldPassword": "{{newPassword}}",
+  "newPassword": "{{initialPassword}}"
+}

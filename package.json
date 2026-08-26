@@ -22,6 +22,7 @@
   "author": "raj248",
   "license": "ISC",
   "dependencies": {
+    "@getbrevo/brevo": "^6.0.3",
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",

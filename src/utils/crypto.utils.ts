@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { AppError } from "./app-error.utils";
+import crypto from "crypto";
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
@@ -21,6 +22,20 @@ export const comparePassword = async (
   hashed: string,
 ): Promise<boolean> => {
   return await bcrypt.compare(password, hashed);
+};
+
+/**
+ * Generates a random 6-digit numeric OTP code.
+ */
+export const generateSixDigitCode = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+/**
+ * Generates a cryptographically secure random token string.
+ */
+export const generateSecureToken = (): string => {
+  return crypto.randomBytes(32).toString("hex");
 };
 
 /**

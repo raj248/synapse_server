@@ -16,6 +16,14 @@ model User {
   gender    String?
   image     String?  // Stores avatar URL from Google payload or profile upload
   googleId  String?  @unique // Optional: index Google's unique subject ('sub') ID
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  // Verification & Security Fields
+  isEmailVerified        Boolean   @default(false)
+  emailVerificationToken String?
+  
+  resetPasswordCode      String?
+  resetPasswordExpires   DateTime?
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 }
