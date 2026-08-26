@@ -23,28 +23,37 @@ export const handleLogin = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
-  const { username, password } = req.body;
+  // Allow login using either username or email passed in the identifier parameter
+  const identifier =
+    req.body?.username || req.body?.email || req.body?.identifier;
+  const { password } = req.body;
 
-  if (!username || !password) {
-    throw new AppError("Username and password are required", 400);
+  if (!identifier || !password) {
+    throw new AppError("Username/Email and password are required", 400);
   }
 
-  // 1. Find user by username
-  const user = await prisma.user.findUnique({
-    where: { username },
+  // 1. Find user by either matching email OR username
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [{ email: identifier }, { username: identifier }],
+    },
   });
 
-  // 2. Validate user existence and password (assuming custom compare function or library)
-  if (!user || !(await comparePassword(password, user.password ?? ""))) {
+  // 2. Validate user existence and password
+  if (
+    !user ||
+    !user.password ||
+    !(await comparePassword(password, user.password))
+  ) {
     throw new AppError("Invalid credentials", 400);
   }
 
   // 3. Generate access and refresh tokens
-  const payload = { userId: user.id };
-  const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(payload);
+  const tokenPayload = { userId: user.id };
+  const accessToken = generateAccessToken(tokenPayload);
+  const refreshToken = generateRefreshToken(tokenPayload);
 
-  // 4. Return user profile + tokens (DummyJSON format)
+  // 4. Return user profile + tokens
   res.status(200).json({
     id: user.id,
     username: user.username,
@@ -72,7 +81,6 @@ export const handleGoogleLogin = async (
 
   let payload;
   try {
-    // 1. Verify Google ID token signature, expiration, and audience
     const ticket = await googleClient.verifyIdToken({
       idToken: idToken,
       audience: [
@@ -82,7 +90,7 @@ export const handleGoogleLogin = async (
     });
     payload = ticket.getPayload();
   } catch (error) {
-    console.log(error);
+    console.error("[Auth Error] Google token verification failed:", error);
     throw new AppError("Invalid or expired Google ID token", 401);
   }
 
@@ -90,32 +98,39 @@ export const handleGoogleLogin = async (
     throw new AppError("Malformed Google ID token payload", 400);
   }
 
-  // Optional: Ensure the Google email is verified
   if (!payload.email_verified) {
     throw new AppError("Google email is not verified", 401);
   }
 
   const { email, given_name, family_name, picture, sub: googleId } = payload;
 
-  // 2. Find or create the user in Prisma DB
+  // 2. Find existing user by email
   let user = await prisma.user.findUnique({
     where: { email },
   });
 
-  if (!user) {
-    // Create new user if they don't exist yet
-    // Generates a unique fallback username based on their Google email prefix
-    const baseUsername = email.split("@")[0];
-    const uniqueUsername = `${baseUsername}_${Math.floor(1000 + Math.random() * 9000)}`;
-
+  if (user) {
+    // If account exists, link googleId and ensure verified status
+    if (!user.googleId || !user.isEmailVerified) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          googleId: user.googleId ?? googleId,
+          isEmailVerified: true,
+          image: user.image || picture || "",
+        },
+      });
+    }
+  } else {
+    // Create new user using the Google email as the username
     user = await prisma.user.create({
       data: {
         email,
-        username: uniqueUsername,
+        username: email, // Sets email as the default username for Google accounts
         firstName: given_name || "",
         lastName: family_name || "",
         image: picture || "",
-        password: "",
+        password: null,
         googleId,
         isEmailVerified: true,
       },
@@ -127,7 +142,7 @@ export const handleGoogleLogin = async (
   const accessToken = generateAccessToken(tokenPayload);
   const refreshToken = generateRefreshToken(tokenPayload);
 
-  // 4. Return identical payload schema as handleLogin
+  // 4. Return auth payload
   res.status(200).json({
     id: user.id,
     username: user.username,
