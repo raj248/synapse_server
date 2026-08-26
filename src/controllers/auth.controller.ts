@@ -117,6 +117,7 @@ export const handleGoogleLogin = async (
         image: picture || "",
         password: "",
         googleId,
+        isEmailVerified: true,
       },
     });
   }
