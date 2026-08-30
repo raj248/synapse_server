@@ -6,24 +6,238 @@ datasource db {
   provider = "mysql"
 }
 
+// ------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum TaskCategory {
+  HOMEWORK
+  ASSIGNMENT
+  TEST
+  REVISION
+  SYLLABUS_CHECKLIST
+  PROJECT
+}
+
+enum AttachmentType {
+  FILE   // PDFs, Documents
+  IMAGE  // JPG, PNG, WebP
+  LINK   // External URLs
+}
+
+// ------------------------------------------------------
+// USER & CLASS MEMBERSHIP
+// ------------------------------------------------------
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
-  password  String?  // Nullable to support passwordless Google authentication
+  id        String  @id @default(uuid())
+  email     String  @unique
+  username  String  @unique
+  password  String? // Nullable to support passwordless Google authentication
   firstName String?
   lastName  String?
   gender    String?
-  image     String?  // Stores avatar URL from Google payload or profile upload
-  googleId  String?  @unique // Optional: index Google's unique subject ('sub') ID
+  image     String? // Stores avatar URL from Google payload
+  googleId  String? @unique
 
   // Verification & Security Fields
   isEmailVerified        Boolean   @default(false)
   emailVerificationToken String?
-  
-  resetPasswordCode      String?
-  resetPasswordExpires   DateTime?
 
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  resetPasswordCode    String?
+  resetPasswordExpires DateTime?
+
+  // Relationships
+  memberships    ClassMember[]
+  createdClasses Class[]         @relation("CreatedClasses")
+  submissions    TaskSubmission[]
+  announcements  Announcement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Class {
+  id          String   @id @default(uuid())
+  name        String   // e.g., "Class 12 - Mathematics"
+  subject     String?  // e.g., "Calculus"
+  description String?  @db.Text
+  joinCode    String   @unique // e.g., "SYN-8X2K"
+
+  createdById String
+  createdBy   User     @relation("CreatedClasses", fields: [createdById], references: [id])
+
+  members       ClassMember[]
+  topics        SyllabusTopic[]
+  tasks         Task[]
+  announcements Announcement[]
+  attachments   Attachment[]    // Class-level general attachments
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([joinCode])
+}
+
+model ClassMember {
+  id       Int      @id @default(autoincrement())
+  userId   String
+  classId  String
+  role     Role     @default(STUDENT)
+  joinedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classId])
+}
+
+// ------------------------------------------------------
+// SYLLABUS (Self-Referencing Hierarchy)
+// ------------------------------------------------------
+
+model SyllabusTopic {
+  id          Int     @id @default(autoincrement())
+  classId     String
+  title       String
+  description String? @db.Text
+  isCompleted Boolean @default(false) // Updated by class author as syllabus progresses
+  orderIndex  Int     @default(0)
+
+  // Self-referencing hierarchy
+  parentId  Int?
+  parent    SyllabusTopic?  @relation("TopicHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  subTopics SyllabusTopic[] @relation("TopicHierarchy")
+
+  // Many-to-Many mapping to Tasks
+  taskReferences TaskTopic[]
+
+  // Cross-references & Attachments
+  announcements Announcement[]
+  attachments   Attachment[]
+
+  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId])
+}
+
+// ------------------------------------------------------
+// TASKS & SUBMISSIONS
+// ------------------------------------------------------
+
+model Task {
+  id          Int          @id @default(autoincrement())
+  classId     String
+  title       String
+  description String?      @db.Text
+  dueDate     DateTime?
+  category    TaskCategory @default(HOMEWORK)
+
+  // Progress & Workflow Controls
+  isSubmissionRequired Boolean @default(false) // If false, no student uploads allowed
+  isCompleted          Boolean @default(false) // Only class author/teacher can toggle this
+
+  // Many-to-Many mapping to Topics / Sub-topics
+  topicReferences TaskTopic[]
+
+  class         Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attachments   Attachment[]
+  submissions   TaskSubmission[]
+  announcements Announcement[]   // Optional link between task & announcement
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId])
+}
+
+// Explicit Join Table for Task <-> SyllabusTopic (Many-to-Many)
+model TaskTopic {
+  taskId  Int
+  topicId Int
+
+  task  Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  topic SyllabusTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, topicId])
+  @@index([topicId])
+}
+
+model TaskSubmission {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  studentId   String
+  submittedAt DateTime @default(now())
+  remarks     String?  @db.Text
+
+  task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  @@unique([taskId, studentId])
+}
+
+// ------------------------------------------------------
+// ANNOUNCEMENTS
+// ------------------------------------------------------
+
+model Announcement {
+  id       Int    @id @default(autoincrement())
+  classId  String
+  authorId String
+  title    String
+  content  String @db.Text
+
+  // Context references (Optional linking to topic or task)
+  topicId Int?
+  topic   SyllabusTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  taskId Int?
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId])
+}
+
+// ------------------------------------------------------
+// POLYMORPHIC ATTACHMENTS
+// ------------------------------------------------------
+
+model Attachment {
+  id       Int            @id @default(autoincrement())
+  title    String?
+  type     AttachmentType
+  url      String         @db.Text
+  fileSize Int?
+
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  topicId Int?
+  topic   SyllabusTopic? @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  taskId Int?
+  task   Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  submissionId Int?
+  submission   TaskSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  announcementId Int?
+  announcement   Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }

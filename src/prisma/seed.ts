@@ -17,7 +17,6 @@ async function main() {
       password: hashedPassword,
       firstName: "John",
       lastName: "Doe",
-      gender: "male",
       image: "https://dummyjson.com/icon/johndoe/128",
     },
   });
@@ -30,7 +29,6 @@ async function main() {
       password: null,
       firstName: "Jane",
       lastName: "Smith",
-      gender: "female",
       image: "https://lh3.googleusercontent.com/a/default-user",
       googleId: "109876543210987654321",
     },

@@ -60,7 +60,6 @@ export const handleLogin = async (
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
-    gender: user.gender,
     image: user.image,
     accessToken,
     refreshToken,
@@ -149,7 +148,6 @@ export const handleGoogleLogin = async (
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
-    gender: user.gender,
     image: user.image,
     accessToken,
     refreshToken,
@@ -185,7 +183,6 @@ export const handleGetMe = async (
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
-    gender: user.gender,
     image: user.image,
   });
 };
