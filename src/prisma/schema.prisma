@@ -15,6 +15,11 @@ enum Role {
   STUDENT
 }
 
+enum DevicePlatform {
+  ANDROID
+  // iOS would slot in here later using the same table/mechanism.
+}
+
 enum TaskCategory {
   HOMEWORK
   ASSIGNMENT
@@ -28,6 +33,19 @@ enum AttachmentType {
   FILE   // PDFs, Documents
   IMAGE  // JPG, PNG, WebP
   LINK   // External URLs
+}
+
+model DeviceToken {
+  id        Int            @id @default(autoincrement())
+  userId    String
+  token     String         @unique
+  platform  DevicePlatform @default(ANDROID)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ------------------------------------------------------
@@ -53,6 +71,7 @@ model User {
   resetPasswordExpires DateTime?
 
   // Relationships
+  deviceTokens DeviceToken[]
   memberships    ClassMember[]
   createdClasses Class[]         @relation("CreatedClasses")
   submissions    TaskSubmission[]
