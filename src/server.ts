@@ -4,6 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 
 const app: Express = express();
 
@@ -33,7 +34,7 @@ const authLimiter = rateLimit({
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "uploads";
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-app.use(cors());
+app.use(helmet());
 app.use(cookieParser());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
