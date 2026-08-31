@@ -1,0 +1,194 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+@teacherUsername = testuser
+@teacherPassword = Password123!
+@studentUsername = teststudent
+@studentPassword = Password123!
+
+@teacherToken = {{loginTeacher.response.body.accessToken}}
+@studentToken = {{loginStudent.response.body.accessToken}}
+@classId = {{createClass.response.body.id}}
+@joinCode = {{createClass.response.body.joinCode}}
+@topicId = {{createTopic.response.body.id}}
+@taskId = {{createTask.response.body.id}}
+@submissionId = {{createSubmission.response.body.id}}
+@classAttachmentId = {{attachClass.response.body.id}}
+@submissionAttachmentId = {{attachSubmission.response.body.id}}
+
+---
+# --- Setup ---
+
+### 1. Login as Teacher
+# @name loginTeacher
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{teacherUsername}}", "password": "{{teacherPassword}}" }
+
+### 2. Login as Student
+# @name loginStudent
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{studentUsername}}", "password": "{{studentPassword}}" }
+
+### 3. Create Class (Teacher)
+# @name createClass
+POST {{baseUrl}}/classes
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "name": "Attachments Test Class" }
+
+### 4. Join Class (Student)
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "joinCode": "{{joinCode}}" }
+
+### 5. Create Topic (Teacher)
+# @name createTopic
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Reference Materials" }
+
+### 6. Create Task, Submission Required (Teacher)
+# @name createTask
+POST {{baseUrl}}/classes/{{classId}}/tasks
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Upload your notes", "isSubmissionRequired": true }
+
+### 7. Create Submission (Student)
+# @name createSubmission
+POST {{baseUrl}}/tasks/{{taskId}}/submissions
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{}
+
+# --- Actual attachment tests (LINK type — no file upload needed) ---
+
+### 8. Attach Link to Class (Teacher)
+# @name attachClass
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Course syllabus PDF (external)",
+  "type": "LINK",
+  "url": "https://example.com/syllabus.pdf",
+  "classId": "{{classId}}"
+}
+
+### 9. Attach Link to Topic (Teacher)
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Reference video",
+  "type": "LINK",
+  "url": "https://example.com/video",
+  "topicId": {{topicId}}
+}
+
+### 10. Attach Link to Task (Teacher)
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Worksheet template",
+  "type": "LINK",
+  "url": "https://example.com/worksheet",
+  "taskId": {{taskId}}
+}
+
+### 11. Attach Link to Own Submission (Student)
+# @name attachSubmission
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "title": "My notes (Google Drive)",
+  "type": "LINK",
+  "url": "https://drive.google.com/example",
+  "submissionId": {{submissionId}}
+}
+
+### 12. Attach to Someone Else's Submission (Teacher) — should 403
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Shouldn't work",
+  "type": "LINK",
+  "url": "https://example.com/nope",
+  "submissionId": {{submissionId}}
+}
+
+### 13. Zero or Multiple Targets — should 400
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Bad request", "type": "LINK", "url": "https://example.com" }
+
+### 14. LINK Without url — should 400
+POST {{baseUrl}}/attachments
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Missing url", "type": "LINK", "classId": "{{classId}}" }
+
+# --- Real file upload (multipart) — uncomment and point at a real local file ---
+# REST Client sends this as multipart/form-data automatically because of
+# the boundary + Content-Disposition headers below.
+
+# ### 15. Upload a Real File (Teacher)
+# POST {{baseUrl}}/attachments
+# Authorization: Bearer {{teacherToken}}
+# Content-Type: multipart/form-data; boundary=----boundary123
+#
+# ------boundary123
+# Content-Disposition: form-data; name="classId"
+#
+# {{classId}}
+# ------boundary123
+# Content-Disposition: form-data; name="type"
+#
+# FILE
+# ------boundary123
+# Content-Disposition: form-data; name="title"
+#
+# Handout
+# ------boundary123
+# Content-Disposition: form-data; name="file"; filename="handout.pdf"
+# Content-Type: application/pdf
+#
+# < ./sample-files/handout.pdf
+# ------boundary123--
+
+### 16. Delete Class-Level Attachment (Teacher)
+DELETE {{baseUrl}}/attachments/{{classAttachmentId}}
+Authorization: Bearer {{teacherToken}}
+
+### 17. Delete Own Submission Attachment (Student)
+DELETE {{baseUrl}}/attachments/{{submissionAttachmentId}}
+Authorization: Bearer {{studentToken}}
+
+### 18. Delete Non-Existent Attachment — should 404
+DELETE {{baseUrl}}/attachments/999999
+Authorization: Bearer {{teacherToken}}
+
+### 19. Cleanup — Delete the Test Class
+DELETE {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}

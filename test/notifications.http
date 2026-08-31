@@ -1,0 +1,54 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+@teacherUsername = testuser
+@teacherPassword = Password123!
+
+@teacherToken = {{login.response.body.accessToken}}
+# Fake FCM token — real ones only come from an actual Android device via
+# Firebase Messaging SDK, so this just exercises the register/unregister
+# plumbing, not real push delivery.
+@fakeDeviceToken = fake-fcm-token-1234567890abcdef
+
+---
+
+### 1. Login
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{teacherUsername}}", "password": "{{teacherPassword}}" }
+
+### 2. Register Device Token
+POST {{baseUrl}}/notifications/register-device
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "token": "{{fakeDeviceToken}}" }
+
+### 3. Register Same Token Again — should still 204 (upsert, no duplicate-key error)
+POST {{baseUrl}}/notifications/register-device
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "token": "{{fakeDeviceToken}}" }
+
+### 4. Register Without a Token — should 400
+POST {{baseUrl}}/notifications/register-device
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{}
+
+### 5. Unregister Device Token
+POST {{baseUrl}}/notifications/unregister-device
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "token": "{{fakeDeviceToken}}" }
+
+### 6. Unregister Non-Existent Token — should still 204 (no-op, not an error)
+POST {{baseUrl}}/notifications/unregister-device
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "token": "some-token-that-was-never-registered" }

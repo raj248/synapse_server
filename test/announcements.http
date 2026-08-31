@@ -1,0 +1,112 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+@teacherUsername = testuser
+@teacherPassword = Password123!
+@studentUsername = teststudent
+@studentPassword = Password123!
+
+@teacherToken = {{loginTeacher.response.body.accessToken}}
+@studentToken = {{loginStudent.response.body.accessToken}}
+@classId = {{createClass.response.body.id}}
+@joinCode = {{createClass.response.body.joinCode}}
+@topicId = {{createTopic.response.body.id}}
+@announcementId = {{createAnnouncement.response.body.id}}
+
+---
+# --- Setup ---
+
+### 1. Login as Teacher
+# @name loginTeacher
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{teacherUsername}}", "password": "{{teacherPassword}}" }
+
+### 2. Login as Student
+# @name loginStudent
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{studentUsername}}", "password": "{{studentPassword}}" }
+
+### 3. Create Class (Teacher)
+# @name createClass
+POST {{baseUrl}}/classes
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "name": "Announcements Test Class" }
+
+### 4. Join Class (Student) — do this BEFORE creating the announcement below,
+### so the student is an FCM/WebSocket-notification target for it too.
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "joinCode": "{{joinCode}}" }
+
+### 5. Create Topic to Link (Teacher)
+# @name createTopic
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Midterm Prep" }
+
+# --- Actual announcement tests ---
+# Watch the server console when running step 6 — the fire-and-forget
+# notifyClassMembers() call logs FCM multicast results and/or WebSocket
+# sends there; .http can't assert push delivery directly.
+
+### 6. Create Announcement, Linked to Topic (Teacher)
+# @name createAnnouncement
+POST {{baseUrl}}/classes/{{classId}}/announcements
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Midterm moved up a week",
+  "content": "Heads up — the midterm is now next Friday instead of the week after. Focus your revision on chapters 4-6.",
+  "topicId": {{topicId}}
+}
+
+### 7. Create Announcement as Student — should 403
+POST {{baseUrl}}/classes/{{classId}}/announcements
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "title": "Shouldn't work", "content": "Students can't post announcements" }
+
+### 8. List Announcements, Paginated (Student)
+GET {{baseUrl}}/classes/{{classId}}/announcements?page=1&pageSize=10
+Authorization: Bearer {{studentToken}}
+
+### 9. Get Single Announcement (Student)
+GET {{baseUrl}}/announcements/{{announcementId}}
+Authorization: Bearer {{studentToken}}
+
+### 10. Update Announcement (Teacher)
+PATCH {{baseUrl}}/announcements/{{announcementId}}
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "content": "Correction: the midterm is next Friday, 10am, Room 204." }
+
+### 11. Update Announcement as Student — should 403
+PATCH {{baseUrl}}/announcements/{{announcementId}}
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "content": "Shouldn't work" }
+
+### 12. Delete Announcement (Teacher)
+DELETE {{baseUrl}}/announcements/{{announcementId}}
+Authorization: Bearer {{teacherToken}}
+
+### 13. Get Deleted Announcement — should 404
+GET {{baseUrl}}/announcements/{{announcementId}}
+Authorization: Bearer {{teacherToken}}
+
+### 14. Cleanup — Delete the Test Class
+DELETE {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}

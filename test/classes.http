@@ -1,0 +1,160 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+
+# Teacher account — reuses the account from auth.http (already registered
+# + verified there). Run auth.http's Register + Verify steps first if you
+# haven't, or this Login will 400.
+@teacherUsername = testuser
+@teacherPassword = Password123!
+
+# A second account, created here, to exercise join/membership/role checks.
+# Uses Gmail's +alias trick so it lands in the same inbox as testEmail
+# while being a distinct, unique account.
+@studentEmail = swallow007281+student@gmail.com
+@studentUsername = teststudent
+@studentPassword = Password123!
+
+@teacherToken = {{loginTeacher.response.body.accessToken}}
+@studentToken = {{loginStudent.response.body.accessToken}}
+@studentUserId = {{loginStudent.response.body.id}}
+@classId = {{createClass.response.body.id}}
+@joinCode = {{createClass.response.body.joinCode}}
+
+---
+
+### 1. Login as Teacher
+# @name loginTeacher
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{teacherUsername}}",
+  "password": "{{teacherPassword}}"
+}
+
+### 2. Register Student Account (one-time — 400 on re-run is expected after the first)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{studentEmail}}",
+  "username": "{{studentUsername}}",
+  "password": "{{studentPassword}}",
+  "firstName": "Test",
+  "lastName": "Student"
+}
+
+### 3. Fetch Student Verification Token (Dev Helper)
+# @name fetchStudentDevTokens
+GET {{baseUrl}}/auth/dev/tokens?email={{studentEmail}}
+
+### 4. Verify Student Email (one-time)
+POST {{baseUrl}}/auth/verify-email
+Content-Type: application/json
+
+{
+  "token": "{{fetchStudentDevTokens.response.body.emailVerificationToken}}"
+}
+
+### 5. Login as Student
+# @name loginStudent
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{studentUsername}}",
+  "password": "{{studentPassword}}"
+}
+
+### 6. Create a Class (Teacher)
+# @name createClass
+POST {{baseUrl}}/classes
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "name": "Class 12 - Mathematics",
+  "subject": "Calculus",
+  "description": "Test class created via classes.http"
+}
+
+### 7. List My Classes (Teacher)
+GET {{baseUrl}}/classes
+Authorization: Bearer {{teacherToken}}
+
+### 8. Get Single Class (Teacher)
+GET {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}
+
+### 9. Update Class (Teacher)
+PATCH {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "description": "Updated description via PATCH"
+}
+
+### 10. Get Class as Student — should 403 (not a member yet)
+GET {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{studentToken}}
+
+### 11. Join Class (Student)
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "joinCode": "{{joinCode}}"
+}
+
+### 12. Join Class Again (Student) — should 400 (already a member)
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "joinCode": "{{joinCode}}"
+}
+
+### 13. Get Class as Student — should now succeed
+GET {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{studentToken}}
+
+### 14. List Members (Teacher)
+GET {{baseUrl}}/classes/{{classId}}/members
+Authorization: Bearer {{teacherToken}}
+
+### 15. Update Class as Student — should 403 (not a teacher)
+PATCH {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "description": "Student shouldn't be able to do this"
+}
+
+### 16. Student Leaves Class
+POST {{baseUrl}}/classes/{{classId}}/leave
+Authorization: Bearer {{studentToken}}
+
+### 17. Teacher (Creator) Tries to Leave — should 400
+POST {{baseUrl}}/classes/{{classId}}/leave
+Authorization: Bearer {{teacherToken}}
+
+### 18. Re-join (Student) — needed if you want to test member removal below
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{
+  "joinCode": "{{joinCode}}"
+}
+
+### 19. Remove Student (Teacher)
+DELETE {{baseUrl}}/classes/{{classId}}/members/{{studentUserId}}
+Authorization: Bearer {{teacherToken}}
+
+### 20. Delete Class (Teacher) — run LAST
+DELETE {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}

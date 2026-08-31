@@ -1,0 +1,128 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+@teacherUsername = testuser
+@teacherPassword = Password123!
+@studentUsername = teststudent
+@studentPassword = Password123!
+
+@teacherToken = {{loginTeacher.response.body.accessToken}}
+@studentToken = {{loginStudent.response.body.accessToken}}
+@classId = {{createClass.response.body.id}}
+@joinCode = {{createClass.response.body.joinCode}}
+@topic1Id = {{createTopic1.response.body.id}}
+@topic2Id = {{createTopic2.response.body.id}}
+@subTopicId = {{createSubTopic.response.body.id}}
+
+---
+# --- Setup: fresh class for this file, both accounts already exist ---
+
+### 1. Login as Teacher
+# @name loginTeacher
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{teacherUsername}}", "password": "{{teacherPassword}}" }
+
+### 2. Login as Student
+# @name loginStudent
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{studentUsername}}", "password": "{{studentPassword}}" }
+
+### 3. Create Class (Teacher)
+# @name createClass
+POST {{baseUrl}}/classes
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "name": "Topics Test Class", "subject": "Physics" }
+
+### 4. Join Class (Student)
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "joinCode": "{{joinCode}}" }
+
+# --- Actual topic tests ---
+
+### 5. Create Root Topic 1 (Teacher) — orderIndex 0 (only one so far)
+# @name createTopic1
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Kinematics", "description": "Motion in one dimension" }
+
+### 6. Create Root Topic 2 (Teacher) — no orderIndex given, should append at index 1
+# @name createTopic2
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Dynamics", "description": "Forces and motion" }
+
+### 7. Create Sub-Topic under Topic 1 (Teacher)
+# @name createSubTopic
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Projectile Motion", "parentId": {{topic1Id}} }
+
+### 8. Get Full Topic Tree (Student) — expect [Kinematics(+subtopic), Dynamics]
+GET {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{studentToken}}
+
+### 9. Get Single Topic with Sub-Topics/Tasks/Attachments (Student)
+GET {{baseUrl}}/topics/{{topic1Id}}
+Authorization: Bearer {{studentToken}}
+
+### 10. Update Topic Title/Description (Teacher)
+PATCH {{baseUrl}}/topics/{{topic1Id}}
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "description": "Motion in one and two dimensions" }
+
+### 11. Reorder: move Topic 2 (Dynamics) to index 0 (Teacher)
+PATCH {{baseUrl}}/topics/{{topic2Id}}/reorder
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "orderIndex": 0 }
+
+### 12. Get Tree Again — expect [Dynamics, Kinematics(+subtopic)] with no gaps
+GET {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{studentToken}}
+
+### 13. Create Topic as Student — should 403
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "title": "Should not be created" }
+
+### 14. Toggle Topic Completion Status (Teacher)
+PATCH {{baseUrl}}/topics/{{topic1Id}}/status
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "isCompleted": true }
+
+### 15. Delete Sub-Topic (Teacher)
+DELETE {{baseUrl}}/topics/{{subTopicId}}
+Authorization: Bearer {{teacherToken}}
+
+### 16. Delete Root Topic — verify sibling gap closes (Teacher)
+DELETE {{baseUrl}}/topics/{{topic2Id}}
+Authorization: Bearer {{teacherToken}}
+
+### 17. Get Tree Final State — expect just [Kinematics], orderIndex 0
+GET {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{studentToken}}
+
+### 18. Cleanup — Delete the Test Class
+DELETE {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}

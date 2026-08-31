@@ -1,0 +1,132 @@
+### Global Variables
+@baseUrl = http://localhost:3000
+@teacherUsername = testuser
+@teacherPassword = Password123!
+@studentUsername = teststudent
+@studentPassword = Password123!
+
+@teacherToken = {{loginTeacher.response.body.accessToken}}
+@studentToken = {{loginStudent.response.body.accessToken}}
+@classId = {{createClass.response.body.id}}
+@joinCode = {{createClass.response.body.joinCode}}
+@topicId = {{createTopic.response.body.id}}
+@taskId = {{createTask.response.body.id}}
+@submissionId = {{createSubmission.response.body.id}}
+
+---
+# --- Setup ---
+
+### 1. Login as Teacher
+# @name loginTeacher
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{teacherUsername}}", "password": "{{teacherPassword}}" }
+
+### 2. Login as Student
+# @name loginStudent
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "username": "{{studentUsername}}", "password": "{{studentPassword}}" }
+
+### 3. Create Class (Teacher)
+# @name createClass
+POST {{baseUrl}}/classes
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "name": "Tasks Test Class", "subject": "Chemistry" }
+
+### 4. Join Class (Student)
+POST {{baseUrl}}/classes/join
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "joinCode": "{{joinCode}}" }
+
+### 5. Create Topic to Link (Teacher)
+# @name createTopic
+POST {{baseUrl}}/classes/{{classId}}/topics
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "title": "Stoichiometry" }
+
+# --- Actual task tests ---
+
+### 6. Create Task, Linked to Topic, Submission Required (Teacher)
+# @name createTask
+POST {{baseUrl}}/classes/{{classId}}/tasks
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{
+  "title": "Balance 10 equations",
+  "description": "Worksheet 3",
+  "dueDate": "2026-09-15T23:59:00.000Z",
+  "category": "HOMEWORK",
+  "isSubmissionRequired": true,
+  "topicIds": [{{topicId}}]
+}
+
+### 7. List Tasks, Filtered by Category (Student)
+GET {{baseUrl}}/classes/{{classId}}/tasks?category=HOMEWORK
+Authorization: Bearer {{studentToken}}
+
+### 8. Get Single Task (Student) — mySubmission should be null
+GET {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{studentToken}}
+
+### 9. Update Task (Teacher)
+PATCH {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "description": "Worksheet 3 — updated due to typo" }
+
+### 10. Create Submission (Student)
+# @name createSubmission
+POST {{baseUrl}}/tasks/{{taskId}}/submissions
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "remarks": "Attached my worked solutions" }
+
+### 11. Create Submission Again (Student) — should 400 (already submitted)
+POST {{baseUrl}}/tasks/{{taskId}}/submissions
+Authorization: Bearer {{studentToken}}
+Content-Type: application/json
+
+{ "remarks": "Trying again" }
+
+### 12. List Submissions (Teacher)
+GET {{baseUrl}}/tasks/{{taskId}}/submissions
+Authorization: Bearer {{teacherToken}}
+
+### 13. Get Single Task Again (Student) — mySubmission now populated
+GET {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{studentToken}}
+
+### 14. List Submissions as Student — should 403 (teacher-only)
+GET {{baseUrl}}/tasks/{{taskId}}/submissions
+Authorization: Bearer {{studentToken}}
+
+### 15. Toggle Task Completion (Teacher)
+PATCH {{baseUrl}}/tasks/{{taskId}}/status
+Authorization: Bearer {{teacherToken}}
+Content-Type: application/json
+
+{ "isCompleted": true }
+
+### 16. Delete Submission (Student, own)
+DELETE {{baseUrl}}/submissions/{{submissionId}}
+Authorization: Bearer {{studentToken}}
+
+### 17. Delete Task (Teacher)
+DELETE {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{teacherToken}}
+
+### 18. Cleanup — Delete the Test Class
+DELETE {{baseUrl}}/classes/{{classId}}
+Authorization: Bearer {{teacherToken}}
